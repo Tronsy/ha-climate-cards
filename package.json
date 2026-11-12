@@ -1,6 +1,6 @@
 {
   "name": "ha-climate-cards",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Home Assistant Karten für Klimasensoren (Temperatur, Luftfeuchte, Luftdruck)",
   "private": true,
   "license": "MIT",

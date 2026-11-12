@@ -165,6 +165,9 @@ const CARDS: { title: string; config: Omit<ClimateCardConfig, 'type'>; half?: bo
   { title: 'D · profile: outdoor', config: { device: 'dev_balkon', layout: 'comfort', profile: 'outdoor' } },
   { title: 'C · profile: outdoor', config: { device: 'dev_balkon', profile: 'outdoor' } },
   { title: 'C1 · halbe Breite (6 Spalten)', config: { device: 'dev_wz', graph_mode: 'overlay' }, half: true },
+  { title: 'C · ohne Verlauf', config: { device: 'dev_wz', show: { graph: false } } },
+  { title: 'C2 · ohne Verlauf', config: { device: 'dev_wz', graph_mode: 'stacked', show: { graph: false } } },
+  { title: 'C1 · ohne Verlauf, ohne Luftdruck', config: { device: 'dev_bad', graph_mode: 'overlay', show: { graph: false } } },
   { title: 'C2 · Masonry (Höhe automatisch)', config: { device: 'dev_bad', graph_mode: 'stacked' }, masonry: true },
 ];
 

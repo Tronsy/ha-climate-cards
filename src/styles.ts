@@ -160,6 +160,13 @@ export const cardStyles = css`
   .stack {
     gap: 10px;
   }
+  .stack.no-graph {
+    justify-content: space-evenly;
+    cursor: default;
+  }
+  .stack.no-graph .block {
+    flex: 0 0 auto;
+  }
   .g {
     position: relative;
     flex: 1 1 auto;

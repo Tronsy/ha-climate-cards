@@ -113,22 +113,28 @@ export class ClimateSensorCard extends LitElement {
     this._token++;
   }
 
-  public getCardSize(): number {
+  /** Rows in the sections grid (56 px per row, 8 px gap), depending on what is visible. */
+  private _rows(): { rows: number; min: number } {
     const c = this._cfg;
-    if (!c) return 5;
-    if (c.layout === 'comfort') return 4;
-    return c.graph_mode === 'stacked' ? 7 : 5;
+    if (!c) return { rows: 5, min: 4 };
+    if (c.layout === 'comfort') return { rows: 4, min: 3 };
+    const n = 1 + (c.show.humidity ? 1 : 0) + (c.show.pressure ? 1 : 0);
+    if (c.graph_mode === 'stacked') {
+      if (!c.show.graph) return n >= 3 ? { rows: 3, min: 3 } : { rows: 2, min: 2 };
+      const rows = n >= 3 ? 6 : n === 2 ? 4 : 3;
+      return { rows, min: rows - 1 };
+    }
+    return c.show.graph ? { rows: 5, min: 4 } : { rows: 2, min: 2 };
+  }
+
+  public getCardSize(): number {
+    // Masonry rechnet in Einheiten von ca. 50 px
+    return Math.ceil((this._rows().rows * 64 - 8) / 50);
   }
 
   public getGridOptions() {
-    const c = this._cfg;
-    if (c?.layout === 'comfort') return { columns: 12, rows: 4, min_columns: 6, min_rows: 3 };
-    if (c?.graph_mode === 'stacked') {
-      const n = 1 + (c.show.humidity ? 1 : 0) + (c.show.pressure ? 1 : 0);
-      const rows = n >= 3 ? 6 : n === 2 ? 4 : 3;
-      return { columns: 12, rows, min_columns: 6, min_rows: rows - 1 };
-    }
-    return { columns: 12, rows: 5, min_columns: 6, min_rows: 4 };
+    const { rows, min } = this._rows();
+    return { columns: 12, rows, min_columns: 6, min_rows: min };
   }
 
   /* ---------- Lifecycle ---------- */
@@ -339,14 +345,22 @@ export class ClimateSensorCard extends LitElement {
 
     const sel: MetricKey = m.byKey[this._selected] ? this._selected : 'temperature';
     const overlay = c.graph_mode === 'overlay';
+    const graph = c.show.graph;
     const segs = m.metrics.map((mt) => {
       const warn = mt.level !== 'ok';
-      const icon = overlay
-        ? html`<svg class="swatch" viewBox="0 0 16 6" aria-hidden="true">
-            <line x1="1" x2="15" y1="3" y2="3" stroke-width="2.4" stroke-linecap="round" stroke-dasharray=${SWATCH_DASH[mt.key] || nothing} style=${`stroke:${mt.color}`}></line>
-          </svg>`
-        : html`<ha-icon .icon=${warn ? 'mdi:alert' : mt.icon}></ha-icon>`;
-      return html`<button class="seg" style=${`--c:${mt.color}`} aria-pressed=${String(mt.key === sel)} @click=${() => (this._selected = mt.key)}>
+      const icon =
+        overlay && graph
+          ? html`<svg class="swatch" viewBox="0 0 16 6" aria-hidden="true">
+              <line x1="1" x2="15" y1="3" y2="3" stroke-width="2.4" stroke-linecap="round" stroke-dasharray=${SWATCH_DASH[mt.key] || nothing} style=${`stroke:${mt.color}`}></line>
+            </svg>`
+          : html`<ha-icon .icon=${warn ? 'mdi:alert' : mt.icon}></ha-icon>`;
+      // Ohne Verlauf gibt es nichts auszuwählen: Antippen öffnet die Details des Sensors.
+      return html`<button
+        class="seg"
+        style=${`--c:${mt.color}`}
+        aria-pressed=${graph ? String(mt.key === sel) : nothing}
+        @click=${() => (graph ? (this._selected = mt.key) : this._moreInfo(mt.entityId))}
+      >
         <span class="seg-label" title=${mt.label}>${icon}<span class="txt">${mt.label}</span></span>
         <span class="seg-value ${warn ? 'warn' : ''}">${this._valueText(mt, this._series(mt))}</span>
       </button>`;
@@ -454,7 +468,7 @@ export class ClimateSensorCard extends LitElement {
           : nothing}
       </div>`;
     });
-    return html`<div class="stack" @pointermove=${p.move} @pointerdown=${p.move} @pointerleave=${p.leave} @pointercancel=${p.leave}>${blocks}</div>`;
+    return html`<div class="stack ${c.show.graph ? '' : 'no-graph'}" @pointermove=${p.move} @pointerdown=${p.move} @pointerleave=${p.leave} @pointercancel=${p.leave}>${blocks}</div>`;
   }
 
   private _cursor(n: number, layers: { s: (number | null)[]; scale: Scale; mt: Metric }[]): TemplateResult | typeof nothing {

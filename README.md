@@ -83,6 +83,10 @@ entities:                        # optional, überschreibt die Erkennung
 | `comfort.temp_min` / `temp_max` | `20` / `24` | Behaglicher Temperaturbereich in °C |
 | `comfort.humidity_min` / `humidity_max` | `40` / `60` | Idealer Feuchtebereich in % |
 
+### Größe im Sections-Dashboard
+
+Die Karte wählt ihre Höhe nach dem Inhalt: mit Verlauf 5 Reihen (getrennt bis 6), ohne Verlauf 2 Reihen (getrennt 3), Raumklima 4. Hast du die Größe einmal von Hand gezogen, speichert HA sie als `grid_options` in der Kartenkonfiguration und behält sie. Entfernst du `grid_options` im YAML, greift wieder die automatische Größe.
+
 ### Eigene Farbstufen
 
 Farben dürfen HA-Farbnamen (`blue`, `light-blue`, `green`, `amber`, `orange`, `red`, `deep-purple` …) oder beliebige CSS-Farben sein. Werte sind immer in °C, auch wenn der Sensor in °F misst.

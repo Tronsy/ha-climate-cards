@@ -2,7 +2,7 @@ import type { ClimateCardConfig, ColorStop, Profile, ResolvedConfig } from './ty
 
 export const CARD_TYPE = 'climate-sensor-card';
 export const EDITOR_TYPE = 'climate-sensor-card-editor';
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
 
 /** Home Assistant color names with their default values (used as CSS fallback). */
 export const HA_COLORS: Record<string, string> = {
