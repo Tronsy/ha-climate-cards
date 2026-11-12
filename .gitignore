@@ -1,0 +1,18 @@
+# Abhängigkeiten und Build (die JS-Datei kommt per Release-Workflow ins GitHub-Release)
+node_modules/
+dist/
+.vite/
+
+# Lokale Werkzeuge und Einstellungen
+.claude/
+.vscode/
+.idea/
+.DS_Store
+*.log
+
+# Nie veröffentlichen
+.env
+.env.*
+secrets.yaml
+*.pem
+*.key

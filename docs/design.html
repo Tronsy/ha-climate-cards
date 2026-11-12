@@ -1,0 +1,826 @@
+<title>Klimasensor-Karten</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Roboto:wght@400;500&display=swap">
+<style>
+/* Layout: ruhige Arbeitsfläche, links Erklärung, rechts ein echtes HA-Dashboard-Stück; oben ein Simulator, der alle Karten live steuert. */
+:root{
+  --bg:#f2f4f6; --surface:#ffffff; --fg:#1a2228; --muted:#5a6670; --line:#dce2e7;
+  --accent:#0277bd; --accent-soft:#e2f1fa; --code-bg:#f7f9fa;
+  --font-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --font-ha:Roboto,"Noto Sans",system-ui,-apple-system,sans-serif;
+  /* HA-Standardtheme (hell) */
+  --ha-bg:#fafafa; --ha-card:#ffffff; --ha-text:#212121; --ha-text2:#727272;
+  --ha-divider:rgba(0,0,0,.12); --ha-chip:rgba(0,0,0,.05); --ha-input:#f3f3f3; --ha-primary:#03a9f4;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1316; --surface:#161b1f; --fg:#e3e8eb; --muted:#97a2ab; --line:#283037;
+    --accent:#4fc3f7; --accent-soft:#11303f; --code-bg:#12171b;
+    --ha-bg:#111111; --ha-card:#1c1c1c; --ha-text:#e1e1e1; --ha-text2:#9b9b9b;
+    --ha-divider:rgba(225,225,225,.12); --ha-chip:rgba(255,255,255,.07); --ha-input:#2a2a2a;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1316; --surface:#161b1f; --fg:#e3e8eb; --muted:#97a2ab; --line:#283037;
+  --accent:#4fc3f7; --accent-soft:#11303f; --code-bg:#12171b;
+  --ha-bg:#111111; --ha-card:#1c1c1c; --ha-text:#e1e1e1; --ha-text2:#9b9b9b;
+  --ha-divider:rgba(225,225,225,.12); --ha-chip:rgba(255,255,255,.07); --ha-input:#2a2a2a;
+  color-scheme:dark;
+}
+/* HA-Theme unabhängig von der Seite erzwingen */
+.ha[data-ha="light"]{--ha-bg:#fafafa;--ha-card:#ffffff;--ha-text:#212121;--ha-text2:#727272;--ha-divider:rgba(0,0,0,.12);--ha-chip:rgba(0,0,0,.05);--ha-input:#f3f3f3}
+.ha[data-ha="dark"]{--ha-bg:#111111;--ha-card:#1c1c1c;--ha-text:#e1e1e1;--ha-text2:#9b9b9b;--ha-divider:rgba(225,225,225,.12);--ha-chip:rgba(255,255,255,.07);--ha-input:#2a2a2a}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--font-ui);-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{text-wrap:balance;margin:0;font-weight:600;letter-spacing:-.01em}
+h1{font-size:clamp(28px,4vw,38px);line-height:1.12}
+h2{font-size:22px;line-height:1.25}
+h3{font-size:15px;line-height:1.3}
+p{margin:0}
+code{font-family:var(--font-mono);font-size:.88em;background:var(--code-bg);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.hero{padding-block:40px 24px;display:grid;gap:14px}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.lead{max-width:68ch;color:var(--muted);font-size:16px}
+
+/* Simulator */
+.sim{background:var(--bg);border-block:1px solid var(--line);z-index:5}
+@media (min-width:900px){.sim{position:sticky;top:env(safe-area-inset-top,0px)}}
+.sim .wrap{padding-block:12px;display:grid;gap:10px}
+.sim-row{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
+.sim-label{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.slider{display:flex;align-items:center;gap:10px;min-width:0}
+.slider label{font-size:13px;font-weight:500;white-space:nowrap}
+.slider input{width:min(200px,40vw);accent-color:var(--accent)}
+.slider output{font:500 13px var(--font-mono);min-width:62px;font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.tog{position:relative}
+.tog input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.tog span{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:14px;border:1px solid var(--line);background:var(--surface);font-size:13px;color:var(--muted);user-select:none}
+.tog span::before{content:"";width:8px;height:8px;border-radius:50%;border:1.5px solid currentColor}
+.tog input:checked+span{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent);background:var(--accent-soft)}
+.tog input:checked+span::before{background:currentColor}
+.tog input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.seg-ui{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg-ui button{font:500 13px var(--font-ui);border:0;background:none;color:var(--muted);padding:5px 11px;cursor:pointer}
+.seg-ui button+button{border-left:1px solid var(--line)}
+.seg-ui button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
+.preset{font:500 13px var(--font-ui);border:1px dashed var(--line);background:none;color:var(--fg);border-radius:14px;height:28px;padding:0 11px;cursor:pointer}
+.preset:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Vorschläge */
+main{display:grid;gap:56px;padding-block:40px 64px}
+.proposal{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);gap:32px;align-items:start}
+@media (max-width:860px){.proposal{grid-template-columns:minmax(0,1fr);gap:18px}}
+.p-text{display:grid;gap:12px;align-content:start;max-width:62ch}
+.p-head{display:flex;align-items:center;gap:12px}
+.letter{min-width:30px;padding:0 6px;height:30px;border-radius:8px;display:grid;place-items:center;font:600 14px var(--font-mono);background:var(--accent-soft);color:var(--accent);flex:none}
+.facts{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:6px;border-top:1px solid var(--line);padding-top:12px}
+.facts li{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;font-size:14px}
+.facts b{font-weight:500;color:var(--muted)}
+.try{font-size:14px;color:var(--accent)}
+.section-head{display:grid;gap:8px;max-width:68ch}
+.section-head p{color:var(--muted)}
+
+/* ===== HA-Nachbau ===== */
+.ha{font-family:var(--font-ha);background:var(--ha-bg);color:var(--ha-text);border-radius:14px;padding:16px;border:1px solid var(--line);display:grid;gap:8px;font-size:14px;line-height:1.4}
+.ha-cap{font:500 11px var(--font-ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ha-text2);margin-bottom:-2px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ha-card{background:var(--ha-card);border:1px solid var(--ha-divider);border-radius:12px;color:var(--ha-text);overflow:hidden;position:relative;transition:background .3s}
+.ha-card.tinted{background:color-mix(in srgb,var(--tint) 10%,var(--ha-card))}
+.ha svg{display:block}
+.ico{width:24px;height:24px;flex:none}
+
+/* Tile */
+.tile{padding:10px;display:flex;flex-direction:column;gap:8px}
+.tile-row{display:flex;align-items:center;gap:10px;min-height:36px}
+.tile-icon{position:relative;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 20%,transparent);flex:none;transition:color .3s,background .3s}
+.badge{position:absolute;right:-3px;bottom:-3px;width:16px;height:16px;border-radius:50%;background:var(--bc);color:#fff;display:grid;place-items:center;box-shadow:0 0 0 2px var(--ha-card)}
+.badge svg{width:11px;height:11px}
+.t-info{min-width:0}
+.t-primary{font-size:14px;font-weight:500;line-height:20px;letter-spacing:.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-secondary{font-size:12px;line-height:16px;letter-spacing:.4px;color:var(--ha-text2)}
+.tile-graph{margin:0 -10px -10px}
+
+/* Sensor-Karte */
+.sc-top{padding:14px 16px 0}
+.sc-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sc-name{font-size:14px;font-weight:500;color:var(--ha-text2)}
+.sc-value{display:flex;align-items:baseline;gap:4px;margin-top:2px;font-variant-numeric:tabular-nums}
+.sc-value .num{font-size:34px;line-height:1.15;font-weight:400;letter-spacing:-.5px}
+.sc-value .unit{font-size:17px;color:var(--ha-text2)}
+.hchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.hchip{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 10px 0 7px;border-radius:14px;background:var(--ha-chip);font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hchip svg{width:16px;height:16px;color:var(--c)}
+.hchip.warn{background:color-mix(in srgb,var(--c) 18%,transparent);color:color-mix(in srgb,var(--c) 70%,var(--ha-text))}
+.hchip .sub{font-weight:400;color:var(--ha-text2)}
+.sc-warn{display:flex;gap:8px;align-items:center;margin:10px 16px 0;padding:6px 10px;border-radius:8px;font-size:12.5px;background:color-mix(in srgb,var(--c) 14%,transparent);color:color-mix(in srgb,var(--c) 65%,var(--ha-text))}
+.sc-warn svg{width:16px;height:16px;flex:none;color:var(--c)}
+.sc-graph{margin-top:10px}
+.sc-foot{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--ha-text2);padding:6px 16px 10px;font-variant-numeric:tabular-nums}
+
+/* Mehrfachverlauf */
+.mc{padding:12px 12px 10px}
+.mc-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 4px 0}
+.mc-name{font-size:16px;font-weight:500}
+.mini-seg{display:inline-flex;background:var(--ha-chip);border-radius:8px;padding:2px}
+.mini-seg button{font:500 12px var(--font-ha);border:0;background:none;color:var(--ha-text2);padding:3px 9px;border-radius:6px;cursor:pointer}
+.mini-seg button[aria-pressed="true"]{background:var(--ha-card);color:var(--ha-text);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.mseg{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:6px;margin-top:10px}
+.mseg button{font-family:var(--font-ha);border:1px solid transparent;border-radius:10px;padding:7px 9px;background:var(--ha-chip);color:var(--ha-text);text-align:left;cursor:pointer;display:grid;gap:1px;min-width:0;transition:background .2s}
+.mseg button[aria-pressed="true"]{background:color-mix(in srgb,var(--c) 16%,transparent);border-color:color-mix(in srgb,var(--c) 45%,transparent)}
+.mseg .lab{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--ha-text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mseg .lab svg{width:14px;height:14px;color:var(--c);flex:none}
+.mseg .val{font-size:15px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mseg .val.warn{color:color-mix(in srgb,var(--c) 70%,var(--ha-text))}
+.mc-graph{position:relative;margin-top:10px;color:var(--ha-text2);touch-action:pan-y;cursor:crosshair}
+.mc-mm{position:absolute;left:4px;top:2px;font-size:11px;color:var(--ha-text2);display:grid;gap:0;pointer-events:none;font-variant-numeric:tabular-nums}
+.mc-x{display:flex;justify-content:space-between;font-size:11px;color:var(--ha-text2);padding:4px 2px 0;font-variant-numeric:tabular-nums}
+.tip-line{position:absolute;top:0;bottom:0;width:1px;background:var(--ha-text2);opacity:.5;pointer-events:none}
+.tip-dot{position:absolute;width:10px;height:10px;border-radius:50%;border:2px solid var(--ha-card);transform:translate(-50%,-50%);pointer-events:none}
+.tip{position:absolute;top:-6px;transform:translate(-50%,-100%);background:var(--ha-text);color:var(--ha-card);font-size:11.5px;padding:3px 7px;border-radius:6px;white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums}
+
+/* Raumklima */
+.cc{padding:12px 16px 14px}
+.cc-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pill{font-size:12px;font-weight:500;padding:3px 10px;border-radius:12px;background:color-mix(in srgb,var(--c) 18%,transparent);color:color-mix(in srgb,var(--c) 68%,var(--ha-text));white-space:nowrap}
+.cc-body{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:12px;align-items:center;margin-top:8px}
+.cc-map svg{width:100%;height:auto}
+.axis{fill:var(--ha-text2);font-size:9px;font-family:var(--font-ha)}
+.trail{stroke:var(--ha-text2);fill:none}
+.halo{stroke:var(--ha-card)}
+.cc-list{display:grid;gap:7px}
+.cc-row{display:flex;align-items:center;gap:8px;font-size:13px;min-width:0}
+.cc-row svg{width:18px;height:18px;color:var(--c);flex:none}
+.cc-row .k{color:var(--ha-text2);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc-row .v{font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Räume */
+.rc{padding:6px 0 8px}
+.rc-title{padding:10px 16px 4px;font-size:16px;font-weight:500}
+.rc-row{display:grid;grid-template-columns:36px minmax(0,1fr) auto 56px;gap:12px;align-items:center;padding:6px 16px}
+.rc-row .tile-icon{width:36px;height:36px}
+.rc-name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-vals{text-align:right;font-variant-numeric:tabular-nums;line-height:1.25}
+.rc-vals .tt{font-weight:500}
+.rc-vals .hh{font-size:12px;color:var(--ha-text2)}
+.rc-vals .hh.warn{color:color-mix(in srgb,var(--c) 70%,var(--ha-text));font-weight:500}
+
+/* Farben */
+.scale{display:grid;gap:22px}
+.scale-block{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:12px}
+.scale-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.scale-top p{color:var(--muted);font-size:14px;max-width:62ch}
+.bar{position:relative;height:16px;border-radius:8px}
+.marker{position:absolute;top:-5px;width:4px;height:26px;border-radius:2px;background:var(--fg);transform:translateX(-50%);box-shadow:0 0 0 2px var(--surface);transition:left .2s}
+.ticks{position:relative;height:18px;font:12px var(--font-mono);color:var(--muted)}
+.ticks span{position:absolute;transform:translateX(-50%);font-variant-numeric:tabular-nums}
+.ticks span:first-child{transform:none}
+.ticks span:last-child{transform:translateX(-100%)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--muted);list-style:none;padding:0;margin:0}
+.legend li{display:flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* Konfiguration */
+.cfg{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:860px){.cfg{grid-template-columns:minmax(0,1fr)}}
+.editor{padding:16px;display:grid;gap:12px}
+.ed-title{font-size:18px;font-weight:400}
+.field{background:var(--ha-input);border-radius:4px 4px 0 0;border-bottom:1px solid var(--ha-text2);padding:6px 12px 7px;display:flex;align-items:center;gap:10px;min-width:0}
+.field .fl{font-size:11.5px;color:var(--ha-text2);line-height:1.2}
+.field .fv{font-size:15px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.field .fid{font-size:12px;color:var(--ha-text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.field svg{width:22px;height:22px;color:var(--ha-text2);flex:none}
+.field>div{min-width:0;flex:1}
+.ed-sub{font-size:13px;color:var(--ha-text2);margin-top:2px}
+.sw-row{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:14px}
+.sw{position:relative;width:36px;height:20px;flex:none}
+.sw input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer;z-index:1}
+.sw span{position:absolute;inset:3px 0;border-radius:7px;background:var(--ha-text2);opacity:.45;transition:.2s}
+.sw span::after{content:"";position:absolute;top:-3px;left:-2px;width:20px;height:20px;border-radius:50%;background:#fafafa;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:.2s}
+.sw input:checked+span{background:var(--ha-primary);opacity:1}
+.sw input:checked+span{background:color-mix(in srgb,var(--ha-primary) 50%,transparent)}
+.sw input:checked+span::after{left:18px;background:var(--ha-primary)}
+.sw input:focus-visible+span{outline:2px solid var(--ha-primary);outline-offset:3px}
+.exp{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--ha-divider);padding-top:12px;font-size:14px;font-weight:500}
+.exp svg{width:22px;height:22px;color:var(--ha-text2)}
+.yaml{background:var(--code-bg);border:1px solid var(--line);border-radius:12px;overflow-x:auto;margin:0;padding:16px 18px;font:13px/1.65 var(--font-mono);color:var(--fg)}
+.yaml .c{color:var(--muted)}
+.yaml .k{color:var(--accent)}
+
+/* Technik + Empfehlung */
+.tech{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;list-style:none;padding:0;margin:0}
+.tech li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:4px;font-size:14px}
+.tech li span{color:var(--muted)}
+.rec{background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:14px;padding:20px 22px;display:grid;gap:10px;max-width:820px}
+.rec p{max-width:70ch}
+.note{font-size:13px;color:var(--muted)}
+/* C-Varianten */
+.variants{display:grid;gap:20px}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:20px;align-items:start}
+.vcol{display:grid;gap:12px;align-content:start;min-width:0}
+.vcol>p{font-size:14px}
+.vsize{font:12px var(--font-mono);color:var(--muted)}
+.pc{font-size:13.5px;color:var(--muted);display:grid;gap:2px}
+.pc b{color:var(--fg);font-weight:500}
+.vh-r{display:flex;align-items:center;gap:8px}
+.vtime{font-size:12px;color:var(--ha-text2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ov{position:relative;height:150px;margin-top:10px;color:var(--ha-text2);touch-action:pan-y;cursor:crosshair}
+.ov>svg{position:absolute;inset:0}
+.mseg .swatch{width:16px;height:6px;flex:none}
+.sp{display:grid;gap:10px;margin-top:10px;touch-action:pan-y;cursor:crosshair}
+.sp-head{display:flex;align-items:center;gap:6px;font-size:12.5px;padding:0 4px;min-width:0}
+.sp-head svg{width:16px;height:16px;color:var(--c);flex:none}
+.sp-head .k{color:var(--ha-text2);white-space:nowrap}
+.sp-head .mm{color:var(--ha-text2);font-size:11.5px;margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sp-head .v{font-weight:500;font-size:14px;min-width:74px;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sp-head .v.warn,.cr-l .val.warn{color:color-mix(in srgb,var(--c) 70%,var(--ha-text))}
+.sp-g,.cr-g{position:relative;color:var(--ha-text2)}
+.sp-g{margin-top:3px}
+.cr{display:grid;margin-top:8px;touch-action:pan-y;cursor:crosshair}
+.cr-row{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center;padding:5px 0;border-top:1px solid var(--ha-divider)}
+.cr-row:first-child{border-top:0}
+.cr-l{display:grid;min-width:0;padding-left:4px}
+.cr-l .lab{display:flex;gap:4px;align-items:center;font-size:11.5px;color:var(--ha-text2);white-space:nowrap}
+.cr-l .lab svg{width:14px;height:14px;color:var(--c);flex:none}
+.cr-l .val{font-size:15px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cr-x{padding-left:106px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="wrap hero">
+  <div class="eyebrow">Home Assistant · Custom Card · Designentwurf</div>
+  <h1>Klimasensor-Karten</h1>
+  <p class="lead">Fünf Vorschläge, wie Temperatur, Luftfeuchte und Luftdruck eines Sensors in einer Karte zusammenkommen. Alle Karten nutzen die Theme-Variablen und Farbnamen von Home Assistant, Roboto und MDI-Icons, damit sie neben Tile-, Sensor- und Entitäten-Karten nicht auffallen. Mit dem Simulator darunter steuerst du alle Karten gleichzeitig.</p>
+</header>
+
+<section class="sim" aria-label="Simulator">
+  <div class="wrap">
+    <div class="sim-row">
+      <span class="sim-label">Simulator</span>
+      <div class="slider"><span style="font-size:13px;font-weight:500">Profil</span>
+        <div class="seg-ui" role="group" aria-label="Farbprofil">
+          <button type="button" data-profile-set="indoor" aria-pressed="true">Innen</button><button type="button" data-profile-set="outdoor" aria-pressed="false">Außen</button>
+        </div>
+      </div>
+      <div class="slider"><label for="in-t">Temperatur</label><input id="in-t" type="range" min="10" max="32" step="0.1" value="21.4"><output id="out-t" for="in-t">21,4 °C</output></div>
+      <div class="slider"><label for="in-h">Luftfeuchte</label><input id="in-h" type="range" min="15" max="90" step="1" value="48"><output id="out-h" for="in-h">48 %</output></div>
+      <div class="slider"><span class="slider-l" style="font-size:13px;font-weight:500">HA-Theme</span>
+        <div class="seg-ui" role="group" aria-label="HA-Theme">
+          <button type="button" data-hatheme="auto" aria-pressed="true">Wie Seite</button><button type="button" data-hatheme="light" aria-pressed="false">Hell</button><button type="button" data-hatheme="dark" aria-pressed="false">Dunkel</button>
+        </div>
+      </div>
+    </div>
+    <div class="sim-row">
+      <div class="chips" role="group" aria-label="Angezeigte Werte">
+        <label class="tog"><input id="sh-hum" type="checkbox" data-show="hum" checked><span>Luftfeuchte</span></label>
+        <label class="tog"><input id="sh-pres" type="checkbox" data-show="pres" checked><span>Luftdruck</span></label>
+        <label class="tog"><input id="sh-dew" type="checkbox" data-show="dew"><span>Taupunkt</span></label>
+        <label class="tog"><input id="sh-graph" type="checkbox" data-show="graph" checked><span>Verlauf</span></label>
+        <label class="tog"><input id="sh-tint" type="checkbox" data-show="tint"><span>Hintergrund tönen</span></label>
+      </div>
+      <div class="chips" role="group" aria-label="Szenarien">
+        <button class="preset" type="button" data-p="indoor" data-t="21.4" data-h="48">Normal</button>
+        <button class="preset" type="button" data-p="indoor" data-t="23.6" data-h="78">Nach dem Duschen</button>
+        <button class="preset" type="button" data-p="indoor" data-t="22.5" data-h="26">Heizungsluft</button>
+        <button class="preset" type="button" data-p="indoor" data-t="29.2" data-h="41">Hitzetag</button>
+        <button class="preset" type="button" data-p="indoor" data-t="13.4" data-h="67">Kalter Keller</button>
+        <button class="preset" type="button" data-p="outdoor" data-t="27.5" data-h="42" hidden>Sommermittag</button>
+        <button class="preset" type="button" data-p="outdoor" data-t="35" data-h="28" hidden>Hitzetag</button>
+        <button class="preset" type="button" data-p="outdoor" data-t="8" data-h="96" hidden>Herbstnebel</button>
+        <button class="preset" type="button" data-p="outdoor" data-t="0.5" data-h="92" hidden>Glätte</button>
+        <button class="preset" type="button" data-p="outdoor" data-t="-12" data-h="78" hidden>Strenger Frost</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<main class="wrap">
+
+  <section class="proposal" id="a">
+    <div class="p-text">
+      <div class="p-head"><span class="letter">A</span><h2>Tile kompakt</h2></div>
+      <p>Sieht aus wie die HA-Tile-Karte, zeigt aber alle Werte des Sensors in der zweiten Zeile. Das Icon färbt sich nach der Temperatur. Bei einer Warnung erscheint ein kleines Badge am Icon, so wie HA es bei Tiles für Zustände nutzt. Optional gibt es einen Mini-Verlauf als Fußzeile.</p>
+      <ul class="facts">
+        <li><b>Grid-Größe</b><span>6 × 1 ohne Verlauf, 6 × 2 mit Verlauf (Sections-Ansicht)</span></li>
+        <li><b>Gut für</b><span>Viele Räume auf einer Seite, Ersatz für deine Einzelkacheln</span></li>
+        <li><b>Tippen</b><span>Öffnet den Mehr-Info-Dialog des Temperatursensors</span></li>
+      </ul>
+    </div>
+    <div class="ha" data-surface>
+      <div class="ha-cap">Ohne und mit Verlauf</div>
+      <div class="grid2"><div id="cardA1"></div><div id="cardA2"></div></div>
+    </div>
+  </section>
+
+  <section class="proposal" id="b">
+    <div class="p-text">
+      <div class="p-head"><span class="letter">B</span><h2>Sensor-Karte mit Verlauf</h2></div>
+      <p>Großer Temperaturwert, darunter Luftfeuchte, Luftdruck mit Trendpfeil und Taupunkt als Chips. Der Verlauf läuft über die volle Breite. Die Linie trägt die Temperaturfarben: Wo es warm war, ist sie orange, wo es kühl war, blau. Warnungen erscheinen als schmale Zeile mit Handlungshinweis.</p>
+      <ul class="facts">
+        <li><b>Grid-Größe</b><span>12 × 4, schmal auch 6 × 4</span></li>
+        <li><b>Gut für</b><span>Ein Sensor pro Raum, Wetterstation auf dem Balkon</span></li>
+        <li><b>Verlauf</b><span>Stunden frei wählbar, Messwert für den Graphen wählbar</span></li>
+      </ul>
+    </div>
+    <div class="ha" data-surface><div id="cardB"></div></div>
+  </section>
+
+  <section class="proposal" id="c">
+    <div class="p-text">
+      <div class="p-head"><span class="letter">C</span><h2>Mehrfachverlauf</h2></div>
+      <p>Jeder Messwert ist ein Schalter. Tippen wechselt den Graphen, oben rechts wählst du 24 Stunden oder 7 Tage. Bei Luftfeuchte zeigt der Graph den Wohlfühlbereich 40–60 % als gestrichelte Linien. Mit Maus oder Finger über den Graphen fahren zeigt einzelne Messpunkte.</p>
+      <p class="try">Probier es aus: Tippe in der Karte auf Luftfeuchte oder Luftdruck.</p>
+      <ul class="facts">
+        <li><b>Grid-Größe</b><span>12 × 5</span></li>
+        <li><b>Gut für</b><span>Detailansicht, Analyse, z. B. Schlafzimmer oder Keller</span></li>
+        <li><b>Daten</b><span>24 h aus dem Verlauf, 7 T aus den Langzeitstatistiken</span></li>
+      </ul>
+    </div>
+    <div class="ha" data-surface><div id="cardC"></div></div>
+  </section>
+
+  <section class="variants" id="c-alle">
+    <div class="section-head">
+      <h2>C mit allen drei Verläufen</h2>
+      <p>Drei Wege, Temperatur, Luftfeuchte und Luftdruck gleichzeitig zu zeigen. Fahr mit Maus oder Finger über einen Graphen: Die Werte in der Karte folgen dem Zeiger, die Uhrzeit steht oben rechts. Unter jeder Karte steht ihre live gemessene Höhe, umgerechnet in Reihen der Sections-Ansicht (56 px pro Reihe, 8 px Abstand).</p>
+    </div>
+    <div class="vgrid">
+      <div class="vcol">
+        <div class="p-head"><span class="letter">C1</span><h3>Überlagert</h3></div>
+        <p>Alle Linien in einem Graphen, jede auf ihren eigenen Wertebereich skaliert. Die Linienart (durchgezogen, gestrichelt, gepunktet) unterscheidet die Messwerte auch ohne Farbe. Tippen auf einen Messwert holt ihn nach vorne.</p>
+        <div class="ha" data-surface><div id="cardC1"></div></div>
+        <div class="vsize" id="c1-h"></div>
+        <div class="pc"><span><b>Pro:</b> kompakt, Zusammenhänge sofort sichtbar (Lüften: Feuchte und Temperatur fallen gleichzeitig).</span><span><b>Contra:</b> keine gemeinsame Y-Achse, absolute Werte nur oben in der Kopfzeile.</span></div>
+      </div>
+      <div class="vcol">
+        <div class="p-head"><span class="letter">C2</span><h3>Getrennt</h3></div>
+        <p>Drei eigene Graphen mit Fläche, je mit Min–Max-Spanne und aktuellem Wert, gemeinsame Zeitachse unten. Die Zeigerlinie läuft durch alle drei.</p>
+        <div class="ha" data-surface><div id="cardC2"></div></div>
+        <div class="vsize" id="c2-h"></div>
+        <div class="pc"><span><b>Pro:</b> jede Kurve gut ablesbar, Spanne direkt dabei.</span><span><b>Contra:</b> die höchste Variante.</span></div>
+      </div>
+      <div class="vcol">
+        <div class="p-head"><span class="letter">C3</span><h3>Getrennt, kompakt</h3></div>
+        <p>Schmale Streifen ohne Fläche, Wert links daneben. Der Mittelweg: getrennt lesbar, aber kaum höher als der überlagerte Graph.</p>
+        <div class="ha" data-surface><div id="cardC3"></div></div>
+        <div class="vsize" id="c3-h"></div>
+        <div class="pc"><span><b>Pro:</b> getrennt und trotzdem flach, liest sich wie eine Tabelle mit Verlauf.</span><span><b>Contra:</b> flache Streifen lassen kleine Schwankungen groß wirken.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="proposal" id="d">
+    <div class="p-text">
+      <div class="p-head"><span class="letter">D</span><h2>Raumklima</h2></div>
+      <p>Verbindet Temperatur und Luftfeuchte zu einer Aussage: Behaglich, Warm &amp; feucht, Kühl &amp; trocken. Der Punkt zeigt den aktuellen Zustand im Behaglichkeitsfeld, die blasse Spur die letzten 24 Stunden. Dazu kommen Taupunkt und absolute Feuchte, die die Karte aus den beiden Sensoren selbst berechnet. Im Außenprofil zeigt sie statt Behaglichkeit die Wetterlage (Frost, Kühl, Angenehm …) und markiert den Glättebereich.</p>
+      <ul class="facts">
+        <li><b>Grid-Größe</b><span>12 × 3</span></li>
+        <li><b>Gut für</b><span>Schlafzimmer, Bad, Keller (Schimmelvorsorge)</span></li>
+        <li><b>Bereiche</b><span>Ideal 20–24 °C und 40–60 %, beides konfigurierbar</span></li>
+      </ul>
+    </div>
+    <div class="ha" data-surface><div id="cardD"></div></div>
+  </section>
+
+  <section class="proposal" id="e">
+    <div class="p-text">
+      <div class="p-head"><span class="letter">E</span><h2>Räume-Übersicht</h2></div>
+      <p>Mehrere Sensoren in einer Karte, eine Zeile pro Raum, angelehnt an die Entitäten-Karte. Warnungen färben nur den betroffenen Wert, damit die Liste ruhig bleibt. Der erste Raum folgt dem Simulator, die anderen sind feste Beispielwerte.</p>
+      <ul class="facts">
+        <li><b>Grid-Größe</b><span>12 × n, wächst mit der Anzahl Räume</span></li>
+        <li><b>Gut für</b><span>Startseite, Überblick über das ganze Haus</span></li>
+        <li><b>Umfang</b><span>Eigene Karte, kann nach A–D kommen</span></li>
+      </ul>
+    </div>
+    <div class="ha" data-surface><div id="cardE"></div></div>
+  </section>
+
+  <section class="scale" id="farben">
+    <div class="section-head">
+      <h2>Farben und Warnungen</h2>
+      <p>Alle Farben kommen aus der HA-Palette (blue, light-blue, green, amber, orange, red, indigo). Sie sehen in hellen und dunklen Themes gleich aus und lassen sich pro Karte überschreiben oder abschalten.</p>
+    </div>
+    <div class="scale-block">
+      <div class="scale-top"><h3>Temperatur-Farbverlauf innen</h3><p>Färbt Icon, Graphlinie und auf Wunsch den Kartenhintergrund. Stufen frei definierbar.</p></div>
+      <div class="bar" id="bar-t"><div class="marker" id="mk-t"></div></div>
+      <div class="ticks" id="ticks-t"></div>
+    </div>
+    <div class="scale-block">
+      <div class="scale-top"><h3>Temperatur-Farbverlauf außen</h3><p>Eigenes Profil für Außensensoren, von strengem Frost (violett) bis Hitze (rot). Luftfeuchte-Warnungen sind außen aus, weil 90 % draußen normal sind. Stattdessen warnt die Karte bei Frost, Glätte und Hitze.</p></div>
+      <div class="bar" id="bar-to"><div class="marker" id="mk-to"></div></div>
+      <div class="ticks" id="ticks-to"></div>
+    </div>
+    <div class="scale-block">
+      <div class="scale-top"><h3>Luftfeuchte-Bereiche</h3><p>Ab „Erhöht“ zeigt die Karte ein Badge oder eine Warnzeile. Schwellen sind konfigurierbar.</p></div>
+      <div class="bar" id="bar-h"><div class="marker" id="mk-h"></div></div>
+      <div class="ticks"><span style="left:0">0 %</span><span style="left:30%">30</span><span style="left:40%">40</span><span style="left:60%">60</span><span style="left:70%">70</span><span style="left:100%">100 %</span></div>
+      <ul class="legend">
+        <li><i style="background:#ff9800"></i>unter 30 %: zu trocken</li>
+        <li><i style="background:#03a9f4"></i>30–40 %: etwas trocken</li>
+        <li><i style="background:#2196f3"></i>40–60 %: ideal</li>
+        <li><i style="background:#ff9800"></i>60–70 %: erhöht, lüften</li>
+        <li><i style="background:#f44336"></i>ab 70 %: Schimmelgefahr</li>
+      </ul>
+    </div>
+    <div class="scale-block">
+      <div class="scale-top"><h3>Luftdruck-Tendenz</h3><p>Kein Farbverlauf, dafür ein Trendpfeil aus der Änderung der letzten 3 Stunden, wie beim klassischen Barometer: ab ±1 hPa steigend oder fallend, sonst gleichbleibend.</p></div>
+    </div>
+  </section>
+
+  <section class="cfg" id="konfig">
+    <div class="ha" data-surface>
+      <div class="ha-cap">Visueller Editor (Entwurf)</div>
+      <div class="ha-card editor">
+        <div class="ed-title">Klimasensor-Karte</div>
+        <div class="field"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3,6H21V4H3C1.9,4 1,4.9 1,6V18A2,2 0 0,0 3,20H7V18H3V6M13,12H9V13.78C8.39,14.33 8,15.11 8,16C8,16.89 8.39,17.67 9,18.22V20H13V18.22C13.61,17.67 14,16.88 14,16C14,15.12 13.61,14.33 13,13.78V12M11,17.5A1.5,1.5 0 0,1 9.5,16A1.5,1.5 0 0,1 11,14.5A1.5,1.5 0 0,1 12.5,16A1.5,1.5 0 0,1 11,17.5M22,8H16A1,1 0 0,0 15,9V19A1,1 0 0,0 16,20H22A1,1 0 0,0 23,19V9A1,1 0 0,0 22,8M21,18H17V10H21V18Z"/></svg><div><div class="fl">Gerät</div><div class="fv">Klimasensor Wohnzimmer</div></div></div>
+        <div class="ed-sub">Erkannte Sensoren (über device_class, einzeln änderbar)</div>
+        <div class="field"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15 13V5A3 3 0 0 0 9 5V13A5 5 0 1 0 15 13M12 4A1 1 0 0 1 13 5V8H11V5A1 1 0 0 1 12 4Z"/></svg><div><div class="fl">Temperatur</div><div class="fid">sensor.wohnzimmer_temperatur</div></div></div>
+        <div class="field"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12,20A6,6 0 0,1 6,14C6,10 12,3.25 12,3.25C12,3.25 18,10 18,14A6,6 0 0,1 12,20Z"/></svg><div><div class="fl">Luftfeuchte</div><div class="fid">sensor.wohnzimmer_luftfeuchtigkeit</div></div></div>
+        <div class="field"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12,16A3,3 0 0,1 9,13C9,11.88 9.61,10.9 10.5,10.39L20.21,4.77L14.68,14.35C14.18,15.33 13.17,16 12,16M12,3C13.81,3 15.5,3.5 16.97,4.32L14.87,5.53C14,5.19 13,5 12,5A8,8 0 0,0 4,13C4,15.21 4.89,17.21 6.34,18.65H6.35C6.74,19.04 6.74,19.67 6.35,20.06C5.96,20.45 5.32,20.45 4.93,20.07V20.07C3.12,18.26 2,15.76 2,13A10,10 0 0,1 12,3M22,13C22,15.76 20.88,18.26 19.07,20.07V20.07C18.68,20.45 18.05,20.45 17.66,20.06C17.27,19.67 17.27,19.04 17.66,18.65V18.65C19.11,17.2 20,15.21 20,13C20,12 19.81,11 19.46,10.1L20.67,8C21.5,9.5 22,11.18 22,13Z"/></svg><div><div class="fl">Luftdruck (optional)</div><div class="fid">sensor.wohnzimmer_luftdruck</div></div></div>
+        <div class="field"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7,10L12,15L17,10H7Z"/></svg><div><div class="fl">Layout</div><div class="fv">Mehrfachverlauf</div></div></div>
+        <div class="field"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7,10L12,15L17,10H7Z"/></svg><div><div class="fl">Farbprofil</div><div class="fv" id="ed-profile">Innenraum</div></div></div>
+        <div class="ed-sub">Anzeigen (synchron mit dem Simulator)</div>
+        <div class="sw-row"><span>Luftfeuchte</span><label class="sw"><input id="ed-hum" type="checkbox" data-show="hum" checked aria-label="Luftfeuchte anzeigen"><span></span></label></div>
+        <div class="sw-row"><span>Luftdruck</span><label class="sw"><input id="ed-pres" type="checkbox" data-show="pres" checked aria-label="Luftdruck anzeigen"><span></span></label></div>
+        <div class="sw-row"><span>Taupunkt</span><label class="sw"><input id="ed-dew" type="checkbox" data-show="dew" aria-label="Taupunkt anzeigen"><span></span></label></div>
+        <div class="sw-row"><span>Verlauf</span><label class="sw"><input id="ed-graph" type="checkbox" data-show="graph" checked aria-label="Verlauf anzeigen"><span></span></label></div>
+        <div class="sw-row"><span>Hintergrund nach Temperatur tönen</span><label class="sw"><input id="ed-tint" type="checkbox" data-show="tint" aria-label="Hintergrund tönen"><span></span></label></div>
+        <div class="exp"><span>Farben und Warnschwellen</span><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/></svg></div>
+        <div class="exp"><span>Interaktionen</span><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/></svg></div>
+      </div>
+    </div>
+    <div style="display:grid;gap:14px;min-width:0">
+      <div class="section-head">
+        <h2>Konfiguration</h2>
+        <p>Du wählst das Gerät, die Karte findet Temperatur, Luftfeuchte und Luftdruck über die device_class selbst. Jede Entität lässt sich trotzdem einzeln setzen, auch über Gerätegrenzen hinweg. Dieselbe Konfiguration gilt für alle Layouts.</p>
+      </div>
+<pre class="yaml"><span class="k">type</span>: custom:climate-sensor-card
+<span class="k">device</span>: 8c1e0f3b9a…            <span class="c"># optional, füllt entities automatisch</span>
+<span class="k">name</span>: Wohnzimmer
+<span class="k">layout</span>: multi                 <span class="c"># multi | comfort</span>
+<span class="k">profile</span>: indoor              <span class="c"># indoor | outdoor</span>
+<span class="k">entities</span>:
+  <span class="k">temperature</span>: sensor.wohnzimmer_temperatur
+  <span class="k">humidity</span>: sensor.wohnzimmer_luftfeuchtigkeit
+  <span class="k">pressure</span>: sensor.wohnzimmer_luftdruck
+<span class="k">show</span>:
+  <span class="k">humidity</span>: true
+  <span class="k">pressure</span>: true
+  <span class="k">dew_point</span>: false
+  <span class="k">graph</span>: true
+<span class="k">graph</span>:
+  <span class="k">hours</span>: 24
+  <span class="k">metric</span>: temperature
+<span class="k">colors</span>:
+  <span class="k">temperature</span>: default         <span class="c"># default | off | eigene Liste</span>
+  <span class="k">tint_background</span>: false
+<span class="k">humidity_thresholds</span>:
+  <span class="k">low</span>: 30
+  <span class="k">high</span>: 60
+  <span class="k">critical</span>: 70
+<span class="k">tap_action</span>:
+  <span class="k">action</span>: more-info</pre>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:16px" id="technik">
+    <div class="section-head">
+      <h2>Was von Home Assistant übernommen wird</h2>
+      <p>Je mehr die Karte von HA selbst nimmt, desto weniger muss sie nachbauen und desto besser passt sie zu jedem Theme.</p>
+    </div>
+    <ul class="tech">
+      <li><b>Theme-Variablen</b><span>--ha-card-background, --primary-text-color, --secondary-text-color, --divider-color, --ha-card-border-radius. Eigene Themes greifen automatisch.</span></li>
+      <li><b>Zahlen und Einheiten</b><span>Formatierung über HA (hass.formatEntityState): deutsches Komma, Einheit und Genauigkeit wie in den Entitätseinstellungen.</span></li>
+      <li><b>Icons</b><span>ha-state-icon und MDI, also dieselben Icons wie in den Entitäten. Pro Karte überschreibbar.</span></li>
+      <li><b>Verlauf</b><span>24 h über das Verlaufs-Abo, das auch die HA-Karten nutzen. 7 T über die Langzeitstatistiken, damit nichts langsam wird.</span></li>
+      <li><b>Layout</b><span>Feste Grid-Größen für die Sections-Ansicht, Kartengröße für Masonry. Resize im Editor funktioniert.</span></li>
+      <li><b>Editor und Aktionen</b><span>Visueller Editor aus HA-Formularbausteinen (Gerät, Entität, Zahl, Schalter). tap_action und hold_action wie bei Standardkarten.</span></li>
+    </ul>
+  </section>
+
+  <section class="rec" id="empfehlung">
+    <h2>Nächster Schritt</h2>
+    <p>Umgesetzt werden C und D als eine Karte <code>custom:climate-sensor-card</code> mit <code>layout: multi | comfort</code> und <code>profile: indoor | outdoor</code>. Für C fehlt nur noch die Wahl zwischen C1, C2 und C3. Die Variante kann auch eine Option werden (<code>graph_mode: overlay | stacked | compact</code>). A, B und E bleiben als spätere Erweiterung im selben Repo möglich.</p>
+    <p class="note">Alle Werte und Verläufe auf dieser Seite sind simulierte Beispieldaten.</p>
+  </section>
+</main>
+
+<script>
+(function(){
+const C={blue:'#2196f3',lightBlue:'#03a9f4',cyan:'#00bcd4',green:'#4caf50',amber:'#ffc107',orange:'#ff9800',red:'#f44336',indigo:'#3f51b5',deepPurple:'#673ab7'};
+const STOPS={
+  indoor:[[14,C.blue],[18,C.lightBlue],[20,C.green],[23,C.amber],[25,C.orange],[28,C.red]],
+  outdoor:[[-15,C.deepPurple],[-5,C.indigo],[0,C.blue],[8,C.lightBlue],[13,C.cyan],[18,C.green],[24,C.amber],[29,C.orange],[34,C.red]]
+};
+const PROF={
+  indoor:{name:'Wohnzimmer',min:10,max:32,t:21.4,h:48,tAmp:1.3,hAmp:4.5,label:'Innenraum'},
+  outdoor:{name:'Balkon',min:-20,max:40,t:6.5,h:82,tAmp:4,hAmp:13,label:'Außen'}
+};
+const NOW=new Date(2026,10,12,15,0);
+const NOW_H=15, P_NOW=1012.6;
+const S={profile:'indoor',t:21.4,h:48,show:{hum:true,pres:true,dew:false,graph:true,tint:false},haTheme:'auto',metric:'temperature',range:'24',focus:'temperature'};
+const $=s=>document.querySelector(s);
+const out=()=>S.profile==='outdoor';
+const NAME=()=>PROF[S.profile].name;
+
+const P={
+  thermo:'M15 13V5A3 3 0 0 0 9 5V13A5 5 0 1 0 15 13M12 4A1 1 0 0 1 13 5V8H11V5A1 1 0 0 1 12 4Z',
+  drop:'M12,20A6,6 0 0,1 6,14C6,10 12,3.25 12,3.25C12,3.25 18,10 18,14A6,6 0 0,1 12,20Z',
+  dew:'M12,3.77L11.25,4.61C11.25,4.61 9.970,6.06 8.68,7.94C7.39,9.82 6,12.07 6,14.23A6,6 0 0,0 12,20.23A6,6 0 0,0 18,14.23C18,12.07 16.61,9.82 15.32,7.94C14.03,6.06 12.75,4.61 12.75,4.61L12,3.77M12,6.9C12.44,7.42 12.84,7.85 13.68,9.07C14.89,10.83 16,13.07 16,14.23C16,16.45 14.22,18.23 12,18.23C9.78,18.23 8,16.45 8,14.23C8,13.07 9.11,10.83 10.32,9.07C11.16,7.85 11.56,7.42 12,6.9Z',
+  gauge:'M12,16A3,3 0 0,1 9,13C9,11.88 9.61,10.9 10.5,10.39L20.21,4.77L14.68,14.35C14.18,15.33 13.17,16 12,16M12,3C13.81,3 15.5,3.5 16.97,4.32L14.87,5.53C14,5.19 13,5 12,5A8,8 0 0,0 4,13C4,15.21 4.89,17.21 6.340,18.65H6.35C6.74,19.04 6.74,19.67 6.35,20.06C5.96,20.45 5.32,20.45 4.93,20.07V20.07C3.12,18.26 2,15.76 2,13A10,10 0 0,1 12,3M22,13C22,15.76 20.88,18.26 19.07,20.07V20.07C18.68,20.45 18.05,20.45 17.66,20.06C17.27,19.67 17.27,19.04 17.66,18.65V18.65C19.11,17.2 20,15.21 20,13C20,12 19.81,11 19.46,10.1L20.67,8C21.5,9.5 22,11.18 22,13Z',
+  alert:'M13 14H11V9H13M13 18H11V16H13M1 21H23L12 2L1 21Z',
+  up:'M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z',
+  down:'M16,18L18.29,15.71L13.41,10.83L9.41,14.83L2,7.41L3.41,6L9.41,12L13.41,8L19.71,14.29L22,12V18H16Z',
+  flat:'M22,12L18,8V11H3V13H18V16L22,12Z',
+  water:'M12,3.25C12,3.25 6,10 6,14C6,17.32 8.69,20 12,20A6,6 0 0,0 18,14C18,10 12,3.25 12,3.25M14.47,9.97L15.53,11.03L9.53,17.03L8.47,15.97M9.75,10A1.25,1.25 0 0,1 11,11.25A1.25,1.25 0 0,1 9.75,12.5A1.25,1.25 0 0,1 8.5,11.25A1.25,1.25 0 0,1 9.75,10M14.25,14.5A1.25,1.25 0 0,1 15.5,15.75A1.25,1.25 0 0,1 14.25,17A1.25,1.25 0 0,1 13,15.75A1.25,1.25 0 0,1 14.25,14.5Z'
+};
+const ic=(n,cls='ico')=>`<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="${P[n]}"/></svg>`;
+
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const fmt=(v,d=1)=>v.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fT=v=>fmt(v,1)+' °C', fH=v=>Math.round(v)+' %', fP=v=>Math.round(v)+' hPa', fP1=v=>fmt(v,1)+' hPa';
+const mixText=c=>`color-mix(in srgb, ${c} 70%, var(--ha-text))`;
+
+function rng(seed){let s=seed%2147483647||1;return()=>{s=s*16807%2147483647;return(s-1)/2147483646;};}
+const nPts=days=>days===1?96:168;
+const phase=(x,days)=>{const hour=NOW_H-24*days+24*days*x;return Math.sin(2*Math.PI*(hour-11)/24);};
+function genTemp(cur,days=1,seed=7,amp=PROF[S.profile].tAmp){const n=nPts(days),r=rng(seed);let acc=0;const a=[];for(let i=0;i<n;i++){const x=i/(n-1);acc=acc*.85+(r()-.5)*.25*amp;a.push(amp*phase(x,days)+(days>1?amp*.6*Math.sin(2*Math.PI*x*.8):0)+acc);}const d=cur-a[n-1];return a.map(v=>v+d);}
+function genHum(cur,days=1,seed=9,amp=PROF[S.profile].hAmp){const n=nPts(days),r=rng(seed);let acc=0;const a=[];for(let i=0;i<n;i++){const x=i/(n-1);acc=acc*.85+(r()-.5)*.35*amp;a.push(-amp*phase(x,days)+(days>1?amp*.6*Math.sin(2*Math.PI*x*.6):0)+acc);}const d=cur-a[n-1];return a.map(v=>clamp(v+d,1,100));}
+function genPres(days=1){const n=nPts(days),r=rng(5);let acc=0;const a=[];for(let i=0;i<n;i++){const x=i/(n-1);acc=acc*.9+(r()-.5)*.15;a.push(days===1?1021.8-9*x+.5*Math.sin(2*Math.PI*x*2)+acc:1011+5*Math.sin(2*Math.PI*(x*1.4+.1))+acc);}const d=P_NOW-a[n-1];return a.map(v=>v+d);}
+
+function hex2rgb(h){return[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));}
+function tempColor(t,prof=S.profile){const s=STOPS[prof];if(t<=s[0][0])return s[0][1];if(t>=s[s.length-1][0])return s[s.length-1][1];for(let i=0;i<s.length-1;i++){const[a,ca]=s[i],[b,cb]=s[i+1];if(t<=b){const k=(t-a)/(b-a),A=hex2rgb(ca),B=hex2rgb(cb);return`rgb(${A.map((v,j)=>Math.round(v+(B[j]-v)*k)).join(',')})`;}}}
+function humState(h,prof=S.profile){
+  if(prof==='outdoor')return{lvl:'ok',label:h>=90?'Sehr feucht':h<40?'Trocken':'Normal',color:C.blue};
+  if(h>=70)return{lvl:'crit',label:'Schimmelgefahr',hint:'jetzt lüften',color:C.red};
+  if(h>=60)return{lvl:'warn',label:'Erhöht',hint:'Lüften empfohlen',color:C.orange};
+  if(h<30)return{lvl:'warn',label:'Zu trocken',hint:'Luftbefeuchter erwägen',color:C.orange};
+  return{lvl:'ok',label:h<40?'Etwas trocken':'Ideal',color:h<40?C.lightBlue:C.blue};
+}
+function warnings(t,h){
+  const w=[];
+  if(out()){
+    if(t<=1&&h>=80)w.push({lvl:'crit',color:C.red,text:`${fT(t)} bei ${fH(h)} Feuchte: Glättegefahr`});
+    else if(t<=3)w.push({lvl:'warn',color:C.blue,text:`${fT(t)}: Bodenfrost möglich`});
+    if(t>=32)w.push({lvl:'warn',color:C.red,text:`${fT(t)}: Hitze`});
+    return w;
+  }
+  if(S.show.hum){const hs=humState(h);if(hs.lvl!=='ok')w.push({lvl:hs.lvl,color:hs.color,text:`Luftfeuchte ${fH(h)}: ${hs.label}, ${hs.hint}`});}
+  if(t>=27)w.push({lvl:'warn',color:C.red,text:`Temperatur ${fT(t)}: sehr warm`});
+  else if(t<16)w.push({lvl:'warn',color:C.blue,text:`Temperatur ${fT(t)}: kalt`});
+  return w.sort((a,b)=>(b.lvl==='crit')-(a.lvl==='crit'));
+}
+function dewPoint(t,h){const a=17.62,b=243.12,g=Math.log(h/100)+a*t/(b+t);return b*g/(a-g);}
+function absHum(t,h){return 6.112*Math.exp(17.67*t/(t+243.5))*h*2.1674/(273.15+t);}
+function presTrend(p){const d=p[p.length-1]-p[p.length-13];return{d,icon:d>=1?'up':d<=-1?'down':'flat',label:d>=1?'steigend':d<=-1?'fallend':'gleichbleibend'};}
+function comfort(t,h){
+  if(out()){
+    const c=tempColor(t);
+    if(t<=1&&h>=80)return{label:'Glätte',color:C.red};
+    const l=t<-5?'Strenger Frost':t<=0?'Frost':t<10?'Kalt':t<18?'Kühl':t<25?'Angenehm':t<30?'Warm':'Heiß';
+    return{label:l,color:c};
+  }
+  const inner=t>=20&&t<=24&&h>=40&&h<=60, outer=t>=18&&t<=26&&h>=30&&h<=70;
+  if(inner)return{label:'Behaglich',color:C.green};
+  const p=[];if(t<20)p.push('kühl');else if(t>24)p.push('warm');if(h<40)p.push('trocken');else if(h>60)p.push('feucht');
+  let s=p.join(' & ');s=s.charAt(0).toUpperCase()+s.slice(1);
+  return{label:s,color:outer?C.amber:C.red};
+}
+function tsAt(i,n,days){const step=days===1?15:60;const d=new Date(NOW.getTime()-(n-1-i)*step*60000);return days===1?d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):d.toLocaleString('de-DE',{weekday:'short',hour:'2-digit',minute:'2-digit'});}
+const xLabels=days=>days===1?['15:00','03:00','Jetzt']:['Do 5.11.','Mo 9.11.','Jetzt'];
+
+let gid=0;
+function graph(series,o={}){
+  const h=o.h||80,W=300,id='g'+(gid++);
+  let mn=Math.min(...series),mx=Math.max(...series);
+  if(o.lo!==undefined)mn=Math.min(mn,o.lo);if(o.hi!==undefined)mx=Math.max(mx,o.hi);
+  const span=(mx-mn)||1;mn-=span*.12;mx+=span*.12;
+  const top=o.top??4,bot=h-(o.bot??2);
+  const y=v=>bot-(v-mn)/(mx-mn)*(bot-top), x=i=>i/(series.length-1)*W;
+  const line='M'+series.map((v,i)=>x(i).toFixed(1)+','+y(v).toFixed(1)).join('L');
+  const area=line+`L${W},${h}L0,${h}Z`;
+  let defs='',ref=o.color;
+  if(o.tempGrad){let st='';for(let k=0;k<=8;k++){const v=mx-(mx-mn)*k/8;st+=`<stop offset="${clamp(y(v)/h,0,1).toFixed(3)}" stop-color="${tempColor(v)}"/>`;}
+    defs=`<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="${h}">${st}</linearGradient></defs>`;ref=`url(#${id})`;}
+  const bands=(o.bands||[]).map(v=>`<line x1="0" x2="${W}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="currentColor" stroke-opacity=".45" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>`).join('');
+  const fill=o.fill??.16;
+  const dash=o.dash?` stroke-dasharray="${o.dash}"`:'';
+  const op=o.opacity!==undefined?` stroke-opacity="${o.opacity}"`:'';
+  const svg=`<svg viewBox="0 0 ${W} ${h}" preserveAspectRatio="none" width="100%" height="${h}" aria-hidden="true">${defs}${bands}${fill?`<path d="${area}" fill="${ref}" fill-opacity="${fill}"/>`:''}<path d="${line}" fill="none" stroke="${ref}" stroke-width="${o.stroke||2}"${dash}${op} vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+  return{svg,y,n:series.length};
+}
+
+function ctx(){
+  const t=S.t,h=S.h,T=genTemp(t),H=genHum(h),Pr=genPres(1);
+  return{t,h,T,H,Pr,p:Pr[Pr.length-1],tc:tempColor(t),hs:humState(h),dew:dewPoint(t,h),ah:absHum(t,h),tr:presTrend(Pr),w:warnings(t,h)};
+}
+const cardAttrs=(c,cls)=>S.show.tint?`class="ha-card ${cls} tinted" style="--tint:${c.tc}"`:`class="ha-card ${cls}"`;
+
+/* Messwerte und Reihen, gemeinsam für alle C-Varianten */
+function metricList(c){
+  const ms=[{k:'temperature',lab:'Temperatur',icon:'thermo',color:c.tc,val:fT(c.t),unitF:fT,rangeF:(a,b)=>`${fmt(a)}–${fmt(b)} °C`}];
+  const hw=c.hs.lvl!=='ok';
+  if(S.show.hum)ms.push({k:'humidity',lab:'Luftfeuchte',icon:hw?'alert':'water',color:c.hs.color,val:fH(c.h),warn:hw,unitF:fH,rangeF:(a,b)=>`${Math.round(a)}–${Math.round(b)} %`});
+  if(S.show.pres)ms.push({k:'pressure',lab:'Luftdruck',icon:'gauge',color:C.indigo,val:fP(c.p),unitF:fP1,rangeF:(a,b)=>`${Math.round(a)}–${Math.round(b)} hPa`});
+  return ms;
+}
+function seriesOf(c,k,days){
+  if(k==='temperature')return{series:genTemp(c.t,days),opt:{tempGrad:true},colorAt:v=>tempColor(v)};
+  if(k==='humidity'){const col=c.hs.lvl==='ok'?C.blue:c.hs.color;return{series:genHum(c.h,days),opt:Object.assign({color:col},out()?{}:{bands:[40,60],lo:38,hi:62}),colorAt:()=>col};}
+  return{series:genPres(days),opt:{color:C.indigo},colorAt:()=>C.indigo};
+}
+const curDays=()=>S.range==='7'?7:1;
+function rangeSeg(){return`<span class="mini-seg" role="group" aria-label="Zeitraum"><button type="button" data-range="24" aria-pressed="${S.range==='24'}">24 h</button><button type="button" data-range="7" aria-pressed="${S.range==='7'}">7 T</button></span>`;}
+function vHead(id){return`<div class="mc-head"><span class="mc-name">${NAME()}</span><span class="vh-r"><span class="vtime" id="${id}-time">Jetzt</span>${rangeSeg()}</span></div>`;}
+const xRow=(days,cls='mc-x')=>{const l=xLabels(days);return`<div class="${cls}"><span>${l[0]}</span><span>${l[1]}</span><span>${l[2]}</span></div>`;};
+
+/* Zeiger, der durch mehrere Graphen läuft und Werte live ersetzt */
+const stacks=[];
+function attachStack(wrap,rows,days,timeEl){
+  if(!wrap||!rows.length)return;
+  rows.forEach(r=>{r.line=document.createElement('div');r.line.className='tip-line';r.dot=document.createElement('div');r.dot.className='tip-dot';r.gEl.append(r.line,r.dot);});
+  const hide=()=>{rows.forEach(r=>{r.line.hidden=true;r.dot.hidden=true;if(r.valEl)r.valEl.textContent=r.cur;});if(timeEl)timeEl.textContent='Jetzt';};
+  hide();
+  const move=ev=>{
+    const rc=rows[0].gEl.getBoundingClientRect(),px=ev.clientX-rc.left;
+    if(px<0||px>rc.width){hide();return;}
+    const n=rows[0].series.length,i=Math.round(px/rc.width*(n-1)),xp=i/(n-1)*rc.width;
+    rows.forEach(r=>{const v=r.series[i];r.line.style.left=xp+'px';r.dot.style.left=xp+'px';r.dot.style.top=r.G.y(v)+'px';r.dot.style.background=r.colorAt(v);r.line.hidden=false;r.dot.hidden=false;if(r.valEl)r.valEl.textContent=r.unitF(v);});
+    if(timeEl)timeEl.textContent=tsAt(i,n,days);
+  };
+  wrap.addEventListener('pointermove',move);wrap.addEventListener('pointerdown',move);wrap.addEventListener('pointerleave',hide);
+}
+
+function tileIcon(color,w){
+  const b=w&&w.length?`<span class="badge" style="--bc:${w[0].color}">${ic('alert','')}</span>`:'';
+  return`<div class="tile-icon" style="--c:${color}">${ic('thermo')}${b}</div>`;
+}
+function renderTile(c,withGraph){
+  const parts=[fT(c.t)];
+  if(S.show.hum)parts.push(c.hs.lvl!=='ok'?`<span style="color:${mixText(c.hs.color)};font-weight:500">${fH(c.h)}</span>`:fH(c.h));
+  if(S.show.pres)parts.push(fP(c.p));
+  if(S.show.dew)parts.push('TP '+fT(c.dew));
+  const g=withGraph&&S.show.graph?`<div class="tile-graph">${graph(c.T,{h:40,tempGrad:true,fill:.14}).svg}</div>`:'';
+  return`<div ${cardAttrs(c,'tile')}><div class="tile-row">${tileIcon(c.tc,c.w)}<div class="t-info"><div class="t-primary">${NAME()}</div><div class="t-secondary">${parts.join(' · ')}</div></div></div>${g}</div>`;
+}
+function renderB(c){
+  const chips=[];
+  if(S.show.hum){const warn=c.hs.lvl!=='ok';chips.push(`<span class="hchip${warn?' warn':''}" style="--c:${c.hs.color}">${ic(warn?'alert':'water','')}${fH(c.h)}</span>`);}
+  if(S.show.pres)chips.push(`<span class="hchip" style="--c:${C.indigo}">${ic('gauge','')}${fP(c.p)} <span class="sub" title="${c.tr.label}" style="display:inline-flex">${ic(c.tr.icon,'')}</span></span>`);
+  if(S.show.dew)chips.push(`<span class="hchip" style="--c:${C.lightBlue}">${ic('dew','')}<span class="sub">TP</span> ${fT(c.dew)}</span>`);
+  const warn=c.w.length?`<div class="sc-warn" style="--c:${c.w[0].color}">${ic('alert','')}<span>${c.w[0].text}</span></div>`:'';
+  const mn=Math.min(...c.T),mx=Math.max(...c.T);
+  const g=S.show.graph?`<div class="sc-graph">${graph(c.T,{h:84,tempGrad:true,fill:.16}).svg}</div><div class="sc-foot"><span>24 Stunden</span><span>Min ${fT(mn)} · Max ${fT(mx)}</span></div>`:'<div style="height:14px"></div>';
+  return`<div ${cardAttrs(c,'sc')}><div class="sc-top"><div class="sc-head"><span class="sc-name">${NAME()}</span><span style="color:${c.tc};display:flex">${ic('thermo')}</span></div>
+  <div class="sc-value"><span class="num">${fmt(c.t,1)}</span><span class="unit">°C</span></div>${chips.length?`<div class="hchips">${chips.join('')}</div>`:''}</div>${warn}${g}</div>`;
+}
+
+/* C: ein Graph, Messwert umschaltbar */
+function renderC(c){
+  const ms=metricList(c);
+  if(!ms.find(m=>m.k===S.metric))S.metric='temperature';
+  const days=curDays(),m=ms.find(m=>m.k===S.metric),s=seriesOf(c,m.k,days);
+  const G=graph(s.series,Object.assign({h:140,fill:.14,top:30,bot:4},s.opt));
+  const mn=Math.min(...s.series),mx=Math.max(...s.series);
+  const seg=ms.map(m=>`<button type="button" data-metric="${m.k}" aria-pressed="${m.k===S.metric}" style="--c:${m.color}"><span class="lab">${ic(m.icon,'')}${m.lab}</span><span class="val${m.warn?' warn':''}">${m.val}</span></button>`).join('');
+  const gb=S.show.graph?`<div class="mc-graph" id="c0-g">${G.svg}<div class="mc-mm"><span>Max ${m.unitF(mx)}</span><span>Min ${m.unitF(mn)}</span></div></div>${xRow(days)}`:'';
+  const html=`<div ${cardAttrs(c,'mc')}>${vHead('c0')}<div class="mseg" style="--n:${ms.length}">${seg}</div>${gb}</div>`;
+  return{html,after:()=>{const g=$('#c0-g');if(g)attachStack(g,[{gEl:g,series:s.series,G,unitF:m.unitF,colorAt:s.colorAt,valEl:document.querySelector(`#cardC [data-metric="${m.k}"] .val`),cur:m.val}],days,$('#c0-time'));}};
+}
+/* C1: überlagert */
+const DASH={temperature:'',humidity:'6 4',pressure:'1.5 3.5'};
+function renderC1(c){
+  const ms=metricList(c),days=curDays();
+  if(!ms.find(m=>m.k===S.focus))S.focus='temperature';
+  const order=ms.filter(m=>m.k!==S.focus).concat(ms.filter(m=>m.k===S.focus));
+  const layers=order.map(m=>{const s=seriesOf(c,m.k,days),f=m.k===S.focus;
+    const o=Object.assign({h:150,top:10,bot:4},s.opt,{fill:f?.13:0,stroke:f?2.4:1.5,dash:DASH[m.k],opacity:f?1:.7});if(!f)o.bands=[];
+    return{m,s,G:graph(s.series,o)};});
+  const sw=m=>`<svg class="swatch" viewBox="0 0 16 6" aria-hidden="true"><line x1="1" x2="15" y1="3" y2="3" stroke="${m.color}" stroke-width="2.4" stroke-linecap="round"${DASH[m.k]?` stroke-dasharray="${m.k==='humidity'?'4 2.5':'1 2.6'}"`:''}/></svg>`;
+  const seg=ms.map(m=>`<button type="button" data-focus="${m.k}" aria-pressed="${m.k===S.focus}" style="--c:${m.color}"><span class="lab">${sw(m)}${m.lab}</span><span class="val${m.warn?' warn':''}" id="c1-v-${m.k}">${m.val}</span></button>`).join('');
+  const gb=S.show.graph?`<div class="ov" id="c1-g">${layers.map(l=>l.G.svg).join('')}</div>${xRow(days)}`:'';
+  const html=`<div ${cardAttrs(c,'mc')}>${vHead('c1')}<div class="mseg" style="--n:${ms.length}">${seg}</div>${gb}</div>`;
+  return{html,after:()=>{const g=$('#c1-g');if(!g)return;attachStack(g,layers.map(l=>({gEl:g,series:l.s.series,G:l.G,unitF:l.m.unitF,colorAt:l.s.colorAt,valEl:$('#c1-v-'+l.m.k),cur:l.m.val})),days,$('#c1-time'));}};
+}
+/* C2: getrennt */
+function renderC2(c){
+  const ms=metricList(c),days=curDays();
+  const rows=ms.map(m=>{const s=seriesOf(c,m.k,days);return{m,s,G:graph(s.series,Object.assign({h:62,top:6,bot:3,fill:.14},s.opt))};});
+  const blocks=rows.map(r=>{const mn=Math.min(...r.s.series),mx=Math.max(...r.s.series);
+    return`<div><div class="sp-head" style="--c:${r.m.color}">${ic(r.m.icon,'')}<span class="k">${r.m.lab}</span><span class="mm">${r.m.rangeF(mn,mx)}</span><span class="v${r.m.warn?' warn':''}" id="c2-v-${r.m.k}">${r.m.val}</span></div>${S.show.graph?`<div class="sp-g" id="c2-g-${r.m.k}">${r.G.svg}</div>`:''}</div>`;}).join('');
+  const html=`<div ${cardAttrs(c,'mc')}>${vHead('c2')}<div class="sp" id="c2-w">${blocks}</div>${S.show.graph?xRow(days):''}</div>`;
+  return{html,after:()=>{if(!S.show.graph)return;attachStack($('#c2-w'),rows.map(r=>({gEl:$('#c2-g-'+r.m.k),series:r.s.series,G:r.G,unitF:r.m.unitF,colorAt:r.s.colorAt,valEl:$('#c2-v-'+r.m.k),cur:r.m.val})),days,$('#c2-time'));}};
+}
+/* C3: getrennt, kompakt */
+function renderC3(c){
+  const ms=metricList(c),days=curDays();
+  const rows=ms.map(m=>{const s=seriesOf(c,m.k,days);const o=Object.assign({h:38,top:4,bot:4,fill:0,stroke:1.8},s.opt);o.bands=[];return{m,s,G:graph(s.series,o)};});
+  const body=rows.map(r=>`<div class="cr-row"><div class="cr-l" style="--c:${r.m.color}"><span class="lab">${ic(r.m.icon,'')}${r.m.lab}</span><span class="val${r.m.warn?' warn':''}" id="c3-v-${r.m.k}">${r.m.val}</span></div><div class="cr-g" id="c3-g-${r.m.k}">${S.show.graph?r.G.svg:''}</div></div>`).join('');
+  const html=`<div ${cardAttrs(c,'mc')}>${vHead('c3')}<div class="cr" id="c3-w">${body}</div>${S.show.graph?xRow(days,'mc-x cr-x'):''}</div>`;
+  return{html,after:()=>{if(!S.show.graph)return;attachStack($('#c3-w'),rows.map(r=>({gEl:$('#c3-g-'+r.m.k),series:r.s.series,G:r.G,unitF:r.m.unitF,colorAt:r.s.colorAt,valEl:$('#c3-v-'+r.m.k),cur:r.m.val})),days,$('#c3-time'));}};
+}
+
+/* D: Raumklima / Wetterlage */
+function renderD(c){
+  const W=170,Hh=126,o=out();
+  const R=o?{t0:-15,t1:35,h0:20,h1:100,tt:[-10,0,10,20,30],hh:[40,60,80]}:{t0:14,t1:30,h0:20,h1:90,tt:[16,20,24,28],hh:[30,50,70]};
+  const x=v=>24+(clamp(v,R.t0,R.t1)-R.t0)/(R.t1-R.t0)*(W-30), y=v=>Hh-18-(clamp(v,R.h0,R.h1)-R.h0)/(R.h1-R.h0)*(Hh-26);
+  const cf=comfort(c.t,c.h);
+  const trail=c.T.filter((_,i)=>i%3===0).map((t,k)=>`${x(t).toFixed(1)},${y(c.H[k*3]).toFixed(1)}`).join(' ');
+  let ax='';R.tt.forEach(v=>ax+=`<text class="axis" x="${x(v)}" y="${Hh-4}" text-anchor="middle">${v}°</text>`);
+  R.hh.forEach(v=>ax+=`<text class="axis" x="2" y="${y(v)+3}">${v}%</text>`);
+  const zones=o
+    ?`<rect x="${x(-5)}" y="${y(100)}" width="${x(3)-x(-5)}" height="${y(80)-y(100)}" rx="4" fill="${C.lightBlue}" fill-opacity=".18" stroke="${C.lightBlue}" stroke-opacity=".5"/><text class="axis" x="${(x(-5)+x(3))/2}" y="${y(80)+10}" text-anchor="middle">Glätte</text>`
+    :`<rect x="${x(18)}" y="${y(70)}" width="${x(26)-x(18)}" height="${y(30)-y(70)}" rx="6" fill="${C.green}" fill-opacity=".09"/><rect x="${x(20)}" y="${y(60)}" width="${x(24)-x(20)}" height="${y(40)-y(60)}" rx="4" fill="${C.green}" fill-opacity=".2" stroke="${C.green}" stroke-opacity=".55"/>`;
+  const map=`<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${o?'Wetterlage':'Behaglichkeitsfeld'}: ${cf.label}">${zones}${ax}
+   <polyline class="trail" points="${trail}" stroke-opacity=".45" stroke-width="1.2" stroke-linejoin="round"/>
+   <circle cx="${x(c.t)}" cy="${y(c.h)}" r="10" fill="${c.tc}" fill-opacity=".25"/>
+   <circle class="halo" cx="${x(c.t)}" cy="${y(c.h)}" r="5.5" fill="${c.tc}" stroke-width="2"/></svg>`;
+  const rows=[`<div class="cc-row" style="--c:${c.tc}">${ic('thermo','')}<span class="k">Temperatur</span><span class="v">${fT(c.t)}</span></div>`];
+  if(S.show.hum)rows.push(`<div class="cc-row" style="--c:${c.hs.color}">${ic(c.hs.lvl!=='ok'?'alert':'water','')}<span class="k">Luftfeuchte</span><span class="v"${c.hs.lvl!=='ok'?` style="color:${mixText(c.hs.color)}"`:''}>${fH(c.h)}</span></div>`);
+  rows.push(`<div class="cc-row" style="--c:${C.lightBlue}">${ic('dew','')}<span class="k">Taupunkt</span><span class="v">${fT(c.dew)}</span></div>`);
+  rows.push(`<div class="cc-row" style="--c:${C.lightBlue}">${ic('drop','')}<span class="k">Absolut</span><span class="v">${fmt(c.ah,1)} g/m³</span></div>`);
+  if(S.show.pres)rows.push(`<div class="cc-row" style="--c:${C.indigo}">${ic(c.tr.icon,'')}<span class="k">Luftdruck</span><span class="v">${fP(c.p)}</span></div>`);
+  return`<div ${cardAttrs(c,'cc')}><div class="cc-head"><span class="mc-name">${NAME()}</span><span class="pill" style="--c:${cf.color}">${cf.label}</span></div>
+   <div class="cc-body"><div class="cc-map">${map}</div><div class="cc-list">${rows.join('')}</div></div></div>`;
+}
+const ROOMS=[{name:'Schlafzimmer',t:18.6,h:57,seed:11},{name:'Bad',t:23.2,h:74,seed:23},{name:'Keller',t:13.8,h:64,seed:31}];
+function renderE(c){
+  const first={name:NAME(),t:c.t,h:c.h,T:c.T,prof:S.profile};
+  const all=[first].concat(ROOMS.map(r=>({...r,prof:'indoor',T:genTemp(r.t,1,r.seed,1.3)})));
+  const rows=all.map(r=>{
+    const tc=tempColor(r.t,r.prof),hs=humState(r.h,r.prof),w=S.show.hum&&hs.lvl!=='ok'?[{color:hs.color}]:[];
+    const hh=S.show.hum?`<div class="hh${hs.lvl!=='ok'?' warn':''}" style="--c:${hs.color}">${fH(r.h)}</div>`:'';
+    const sp=S.show.graph?graph(r.T,{h:24,color:tc,fill:0,stroke:1.6}).svg:'';
+    return`<div class="rc-row">${tileIcon(tc,w)}<span class="rc-name">${r.name}</span><div class="rc-vals"><div class="tt">${fT(r.t)}</div>${hh}</div><div>${sp}</div></div>`;
+  }).join('');
+  return`<div class="ha-card rc"><div class="rc-title">Raumklima</div>${rows}</div>`;
+}
+
+function scaleBar(prof,lo,hi,ticks,barSel,tickSel){
+  const s=STOPS[prof],pct=v=>(v-lo)/(hi-lo)*100;
+  $(barSel).style.background=`linear-gradient(90deg,${[[lo,s[0][1]],...s,[hi,s[s.length-1][1]]].map(([v,c])=>`${c} ${pct(v).toFixed(1)}%`).join(',')})`;
+  $(tickSel).innerHTML=ticks.map((v,i)=>`<span style="left:${pct(v)}%">${String(v).replace('-','−')}${i===0||i===ticks.length-1?' °C':''}</span>`).join('');
+}
+function renderScales(){
+  scaleBar('indoor',10,32,[10,14,18,20,23,25,28,32],'#bar-t','#ticks-t');
+  scaleBar('outdoor',-20,40,[-20,-10,0,10,20,30,40],'#bar-to','#ticks-to');
+  $('#bar-h').style.background=`linear-gradient(90deg,${C.orange} 0 30%,${C.lightBlue} 30% 40%,${C.blue} 40% 60%,${C.orange} 60% 70%,${C.red} 70% 100%)`;
+}
+function sizeNote(sel,cardSel){
+  const el=$(cardSel+' .ha-card');if(!el)return;
+  const h=el.offsetHeight,rows=Math.ceil((h+8)/64);
+  $(sel).textContent=`Höhe ${h} px · ca. ${rows} Reihen im Sections-Grid`;
+}
+
+function renderAll(){
+  gid=0;const c=ctx();
+  $('#cardA1').innerHTML=renderTile(c,false);
+  $('#cardA2').innerHTML=renderTile(c,true);
+  $('#cardB').innerHTML=renderB(c);
+  const parts=[['#cardC',renderC(c)],['#cardC1',renderC1(c)],['#cardC2',renderC2(c)],['#cardC3',renderC3(c)]];
+  parts.forEach(([sel,r])=>{$(sel).innerHTML=r.html;r.after();});
+  $('#cardD').innerHTML=renderD(c);
+  $('#cardE').innerHTML=renderE(c);
+  [['#c1-h','#cardC1'],['#c2-h','#cardC2'],['#c3-h','#cardC3']].forEach(([a,b])=>sizeNote(a,b));
+  const pr=PROF[S.profile];
+  $('#mk-t').hidden=out();$('#mk-to').hidden=!out();
+  $('#mk-t').style.left=clamp((c.t-10)/22*100,0,100)+'%';
+  $('#mk-to').style.left=clamp((c.t+20)/60*100,0,100)+'%';
+  $('#mk-h').style.left=clamp(c.h,0,100)+'%';
+  $('#out-t').textContent=fT(c.t);$('#out-h').textContent=fH(c.h);
+  $('#ed-profile').textContent=pr.label;
+}
+function sync(){
+  const pr=PROF[S.profile];
+  document.querySelectorAll('[data-show]').forEach(el=>el.checked=!!S.show[el.dataset.show]);
+  const ti=$('#in-t');ti.min=pr.min;ti.max=pr.max;ti.value=S.t;$('#in-h').value=S.h;
+  document.querySelectorAll('[data-hatheme]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.hatheme===S.haTheme));
+  document.querySelectorAll('[data-profile-set]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.profileSet===S.profile));
+  document.querySelectorAll('.preset').forEach(b=>b.hidden=b.dataset.p!==S.profile);
+  document.querySelectorAll('.ha').forEach(el=>S.haTheme==='auto'?el.removeAttribute('data-ha'):el.setAttribute('data-ha',S.haTheme));
+}
+$('#in-t').addEventListener('input',e=>{S.t=+e.target.value;renderAll();});
+$('#in-h').addEventListener('input',e=>{S.h=+e.target.value;renderAll();});
+document.querySelectorAll('[data-show]').forEach(el=>el.addEventListener('change',()=>{S.show[el.dataset.show]=el.checked;sync();renderAll();}));
+document.querySelectorAll('[data-hatheme]').forEach(b=>b.addEventListener('click',()=>{S.haTheme=b.dataset.hatheme;sync();renderAll();}));
+document.querySelectorAll('[data-profile-set]').forEach(b=>b.addEventListener('click',()=>{S.profile=b.dataset.profileSet;S.t=PROF[S.profile].t;S.h=PROF[S.profile].h;sync();renderAll();}));
+document.querySelectorAll('.preset').forEach(b=>b.addEventListener('click',()=>{S.t=+b.dataset.t;S.h=+b.dataset.h;sync();renderAll();}));
+document.querySelector('main').addEventListener('click',e=>{
+  const m=e.target.closest('[data-metric]'),f=e.target.closest('[data-focus]'),r=e.target.closest('[data-range]');
+  if(m)S.metric=m.dataset.metric;else if(f)S.focus=f.dataset.focus;else if(r)S.range=r.dataset.range;else return;
+  renderAll();
+});
+renderScales();sync();renderAll();
+window.addEventListener('resize',()=>[['#c1-h','#cardC1'],['#c2-h','#cardC2'],['#c3-h','#cardC3']].forEach(([a,b])=>sizeNote(a,b)));
+})();
+</script>

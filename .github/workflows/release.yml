@@ -1,0 +1,27 @@
+name: Release
+
+# Baut die Karte und hängt dist/climate-sensor-card.js an das GitHub-Release.
+# HACS lädt genau diese Datei herunter.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Upload asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/climate-sensor-card.js --clobber

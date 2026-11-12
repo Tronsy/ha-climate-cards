@@ -1,0 +1,27 @@
+{
+  "name": "ha-climate-cards",
+  "version": "0.1.0",
+  "description": "Home Assistant Karten für Klimasensoren (Temperatur, Luftfeuchte, Luftdruck)",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tronsy/ha-climate-cards.git"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "watch": "vite build --watch",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "lit": "3.2.1"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3",
+    "vite": "5.4.11",
+    "vitest": "2.1.8"
+  }
+}
